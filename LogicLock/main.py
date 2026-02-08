@@ -91,18 +91,14 @@ except Exception:
     from LogicLock.map_io import scale_tree_images, sparsify_trees
     import LogicLock.map_render as map_render
     from LogicLock.camera import create_screen, camera
-    # Remote control server: import module objects so we can reload them at runtime
+    # Hot-reloadable modules (remote server removed)
     import importlib, threading, time as _time, os as _os
-    try:
-        import tools.remote_server as _remote_mod
-    except Exception:
-        import LogicLock.tools.remote_server as _remote_mod
     try:
         import menu as _menu_mod
     except Exception:
         import LogicLock.menu as _menu_mod
 
-    HOT_MODULES = {'menu': _menu_mod, 'remote': _remote_mod}
+    HOT_MODULES = {'menu': _menu_mod}
 
     def start_hot_reload_watcher(modules, interval=1.0):
         mtimes = {}
@@ -202,60 +198,7 @@ def main():
         camera.y = 0
         camera.smooth = float(CONFIG.get('camera_smooth', 0.0))
 
-        # Start remote server (streams screen and accepts key events)
-        try:
-            # mapping from remote key string to pygame key constants
-            _REMOTE_TO_PYGAME = {
-                'w': pygame.K_w, 'a': pygame.K_a, 's': pygame.K_s, 'd': pygame.K_d,
-                'ArrowUp': pygame.K_UP, 'ArrowDown': pygame.K_DOWN,
-                'ArrowLeft': pygame.K_LEFT, 'ArrowRight': pygame.K_RIGHT,
-                ' ': pygame.K_SPACE
-            }
-            # start server using module object so reloads take effect
-            # create a small frame queue; main thread will capture and encode JPEG bytes
-            import queue as _queue
-            _frame_queue = _queue.Queue(maxsize=2)
-
-            # streaming parameters (keep consistent to avoid size changes)
-            STREAM_FPS = 6
-            STREAM_SCALE = 0.5
-            STREAM_QUALITY = 50
-
-            def _capture_frame_bytes(surf, scale=STREAM_SCALE, quality=STREAM_QUALITY):
-                try:
-                    from PIL import Image
-                    import io as _io
-                    data = pygame.image.tostring(surf, 'RGB')
-                    img = Image.frombytes('RGB', surf.get_size(), data)
-                    if scale and scale != 1.0:
-                        tw = max(1, int(surf.get_width() * scale))
-                        th = max(1, int(surf.get_height() * scale))
-                        try:
-                            img = img.resize((tw, th), Image.BILINEAR)
-                        except Exception:
-                            img = img.resize((tw, th))
-                    buf = _io.BytesIO()
-                    img.save(buf, 'JPEG', quality=quality)
-                    return buf.getvalue()
-                except Exception as e:
-                    print(f"[hotstream] capture error: {e}")
-                    return None
-
-            def _get_frame_bytes():
-                try:
-                    return _frame_queue.get_nowait()
-                except Exception:
-                    return None
-
-            t = HOT_MODULES['remote'].start_server(_get_frame_bytes, host='0.0.0.0', port=5000, fps=STREAM_FPS)
-            if t is None:
-                print("Remote server start returned None")
-            else:
-                print("Remote server thread launched")
-            _prev_remote = set()
-            _injected_codes = set()
-        except Exception as _e:
-            print(f"Remote server not started: {_e}")
+        # Remote server removed — no streaming or remote key injection
 
         clear_color = tuple(CONFIG.get('clear_color', _default_config['clear_color']))
         running = True
@@ -400,62 +343,7 @@ def main():
                 elif event.type == pygame.ACTIVEEVENT and getattr(event, 'gain', 1) == 0:
                     keys_down.clear()
 
-            # integrate remote keys (post KEYDOWN/KEYUP events)
-            try:
-                remote_now = HOT_MODULES['remote'].get_remote_keys()
-                if remote_now != _prev_remote:
-                    try:
-                        print(f"[remote_keys] changed: now={sorted(list(remote_now))} prev={sorted(list(_prev_remote))}")
-                    except Exception:
-                        print(f"[remote_keys] changed: now={remote_now} prev={_prev_remote}")
-                    # capture and push a fresh frame immediately to reduce stream latency
-                    try:
-                        fb = _capture_frame_bytes(screen.copy(), scale=STREAM_SCALE, quality=STREAM_QUALITY)
-                        if fb is not None:
-                            # drop oldest frame(s) to make room and push this one
-                            try:
-                                while _frame_queue.full():
-                                    _frame_queue.get_nowait()
-                            except Exception:
-                                pass
-                            try:
-                                _frame_queue.put_nowait(fb)
-                            except Exception:
-                                pass
-                    except Exception:
-                        pass
-                # map remote keys to pygame codes
-                new_codes = set()
-                for k in remote_now:
-                    code = _REMOTE_TO_PYGAME.get(k)
-                    if code:
-                        new_codes.add(code)
-
-                # add new injected codes (and mark them in keys_down)
-                for code in (new_codes - _injected_codes):
-                    try:
-                        print(f"[remote_inject] INJECT DOWN -> {code}")
-                    except Exception:
-                        pass
-                    keys_down.add(code)
-                    pygame.event.post(pygame.event.Event(pygame.KEYDOWN, {'key': code}))
-
-                # remove codes no longer pressed remotely
-                for code in (_injected_codes - new_codes):
-                    try:
-                        print(f"[remote_inject] INJECT UP -> {code}")
-                    except Exception:
-                        pass
-                    try:
-                        keys_down.discard(code)
-                    except Exception:
-                        pass
-                    pygame.event.post(pygame.event.Event(pygame.KEYUP, {'key': code}))
-
-                _injected_codes = new_codes
-                _prev_remote = remote_now
-            except Exception:
-                pass
+            # Remote server removed — no remote key integration
 
             dt = clock.tick_busy_loop(60)/1000.0 if hasattr(clock, 'tick_busy_loop') else clock.tick(60)/1000.0
             player.update(map, dt)
@@ -474,18 +362,7 @@ def main():
             if SHOW_PERF:
                 draw_perf_hud(screen)
 
-            # capture a scaled JPEG of the screen into the frame queue for remote streaming
-            try:
-                surf_copy = screen.copy()
-                frame_bytes = _capture_frame_bytes(surf_copy, scale=STREAM_SCALE, quality=STREAM_QUALITY)
-                if frame_bytes is not None:
-                    try:
-                        _frame_queue.put_nowait(frame_bytes)
-                    except Exception:
-                        # queue full; drop frame
-                        pass
-            except Exception:
-                pass
+            # Remote server removed — no frame streaming
 
             pygame.display.flip()
             
