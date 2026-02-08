@@ -89,7 +89,11 @@ def main_menu():
     pygame.display.set_caption("Main Menu")
 
     font = pygame.font.Font(None, 74)
-    menu_options = ["Start Game", "Settings", "Exit"]
+    # If a savegame exists in the repo root, show Load Game instead of Settings
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    save_path = os.path.join(repo_root, 'savegame.json')
+    has_save = os.path.exists(save_path)
+    menu_options = ["Start Game", ("Load Game" if has_save else "Settings"), "Exit"]
     selected_option = 0
 
     # Optional assets (place files in LogicLock/images/)
@@ -180,11 +184,14 @@ def main_menu():
                 elif event.key == pygame.K_DOWN:
                     selected_option = (selected_option + 1) % len(menu_options)
                 elif event.key == pygame.K_RETURN:
-                    if menu_options[selected_option] == "Start Game":
+                    choice = menu_options[selected_option]
+                    if choice == "Start Game":
                         return "start_game"
-                    elif menu_options[selected_option] == "Settings":
+                    elif choice == "Load Game":
+                        return "load_game"
+                    elif choice == "Settings":
                         return "settings"
-                    elif menu_options[selected_option] == "Exit":
+                    elif choice == "Exit":
                         pygame.quit()
                         sys.exit()
 

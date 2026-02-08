@@ -1,4 +1,5 @@
 import pygame
+import sys
 import os
 import json
 import menu  # Import the main menu module
@@ -186,7 +187,9 @@ def main():
     # Display the main menu (use hot-reloadable module)
     menu_action = HOT_MODULES['menu'].main_menu()
 
-    if menu_action == "start_game":
+    # Support starting normally or via main-menu Load Game option
+    if menu_action in ("start_game", "load_game"):
+        do_load = (menu_action == "load_game")
         # Proceed to the game loop
         pygame.init()
         # create the screen via create_screen so camera.width/height are set
@@ -270,6 +273,181 @@ def main():
             except Exception as e:
                 add_msg(f"Failed to save config: {e}")
 
+        def save_game(path=None):
+            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+            save_path = path or os.path.join(repo_root, 'savegame.json')
+            try:
+                state = {
+                    'version': 1,
+                    'config': CONFIG,
+                    'player': {'x': player.x, 'y': player.y, 'speed': player.speed},
+                    'camera': {'_x': camera._x, '_y': camera._y},
+                    'map': {
+                        'tiles': map.tiles,
+                        'tile_size': map.tile_size,
+                        'tile_kinds': [tk.name for tk in map.tile_kinds],
+                        'tree_density': map.tree_density,
+                        'clustered': map.clustered,
+                        'tree_scale': map.tree_scale,
+                        'chunk_size': map.chunk_size,
+                        'max_tiles': map.max_tiles
+                    }
+                }
+                with open(save_path, 'w', encoding='utf-8') as fh:
+                    json.dump(state, fh, indent=2)
+                add_msg(f"Game saved to {os.path.basename(save_path)}")
+            except Exception as e:
+                add_msg(f"Failed to save game: {e}")
+
+        def load_game(path=None):
+            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+            load_path = path or os.path.join(repo_root, 'savegame.json')
+            if not os.path.exists(load_path):
+                add_msg(f"Save not found: {os.path.basename(load_path)}")
+                return
+            try:
+                with open(load_path, 'r', encoding='utf-8') as fh:
+                    state = json.load(fh)
+
+                # Restore config
+                cfg = state.get('config')
+                if isinstance(cfg, dict):
+                    CONFIG.update(cfg)
+
+                # Restore player
+                p = state.get('player', {})
+                try:
+                    player.x = float(p.get('x', player.x))
+                    player.y = float(p.get('y', player.y))
+                    player.speed = float(p.get('speed', player.speed))
+                except Exception:
+                    pass
+
+                # Restore camera
+                cam = state.get('camera', {})
+                try:
+                    camera._x = float(cam.get('_x', camera._x))
+                    camera._y = float(cam.get('_y', camera._y))
+                except Exception:
+                    pass
+
+                # Restore map tiles and params
+                m = state.get('map', {})
+                saved_tiles = m.get('tiles')
+                saved_tile_names = m.get('tile_kinds') or []
+
+                if saved_tiles is not None:
+                    # Remap saved tile indices to current tile_kinds order by name
+                    name_to_index = {tk.name: idx for idx, tk in enumerate(tile_kinds)}
+                    remap = {}
+                    for i, name in enumerate(saved_tile_names):
+                        remap[i] = name_to_index.get(name, i)
+
+                    new_tiles = []
+                    for row in saved_tiles:
+                        new_row = [remap.get(int(v), int(v)) for v in row]
+                        new_tiles.append(new_row)
+
+                    new_map = Map.from_tiles(
+                        new_tiles,
+                        tile_kinds,
+                        int(m.get('tile_size', TILE_SIZE)),
+                        tree_density=m.get('tree_density'),
+                        clustered=bool(m.get('clustered')),
+                        max_tiles=int(m.get('max_tiles', map.max_tiles or _default_config['max_tiles'])),
+                        tree_scale=m.get('tree_scale'),
+                        chunk_size=int(m.get('chunk_size', map.chunk_size or _default_config['chunk_size']))
+                    )
+                    # Replace map reference in local scope
+                    nonlocal_map_wrapper = globals()
+                    # assign to local variable 'map' by mutating outer scope via closure trick
+                    # (we simply update the existing map object's attributes where possible)
+                    try:
+                        # Swap attributes on existing map object to preserve references
+                        map.tiles = new_map.tiles
+                        map.tile_kinds = new_map.tile_kinds
+                        map.tile_size = new_map.tile_size
+                        map.tree_density = new_map.tree_density
+                        map.clustered = new_map.clustered
+                        map.max_tiles = new_map.max_tiles
+                        map.tree_scale = new_map.tree_scale
+                        map.chunk_size = new_map.chunk_size
+                        map._chunks = None
+                        map._images_converted = False
+                    except Exception:
+                        add_msg("Loaded map but failed to apply to current instance")
+
+                add_msg(f"Game loaded from {os.path.basename(load_path)}")
+            except Exception as e:
+                add_msg(f"Failed to load game: {e}")
+
+        def pause_menu():
+            """Simple in-game pause menu. Navigable with arrows/W,S and Enter. ESC to resume."""
+            menu_font = pygame.font.Font(None, 32)
+            small_font = pygame.font.Font(None, 20)
+            options = ["Resume", "Save", "Load", "Quit"]
+            selected = 0
+            # translucent overlay used on top of the live game render
+            overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 160))
+
+            while True:
+                for ev in pygame.event.get():
+                    if ev.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                    if ev.type == pygame.KEYDOWN:
+                        if ev.key == pygame.K_ESCAPE:
+                            return
+                        if ev.key in (pygame.K_UP, pygame.K_w):
+                            selected = (selected - 1) % len(options)
+                        elif ev.key in (pygame.K_DOWN, pygame.K_s):
+                            selected = (selected + 1) % len(options)
+                        elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                            choice = options[selected]
+                            if choice == "Resume":
+                                return
+                            elif choice == "Save":
+                                save_game()
+                            elif choice == "Load":
+                                load_game()
+                                return
+                            elif choice == "Quit":
+                                pygame.quit()
+                                sys.exit()
+
+                # Render the last visible game frame so the world remains visible while paused
+                try:
+                    # draw map and sprites without updating game state
+                    map.draw(screen)
+                    for s in sprites:
+                        s.draw(screen)
+                    box_sprites.draw(screen)
+                    draw_overlay(screen)
+                    if SHOW_PERF:
+                        draw_perf_hud(screen)
+                except Exception:
+                    # Fallback: clear screen if drawing fails
+                    screen.fill((0, 0, 0))
+
+                # Draw translucent overlay and menu UI on top
+                screen.blit(overlay, (0, 0))
+                title_surf = menu_font.render("PAUSED", True, (255, 255, 255))
+                tx = (screen.get_width() - title_surf.get_width()) // 2
+                ty = screen.get_height() // 4
+                screen.blit(title_surf, (tx, ty))
+
+                # Draw options
+                oy = ty + 48
+                for i, opt in enumerate(options):
+                    color = (255, 220, 100) if i == selected else (220, 220, 220)
+                    surf = small_font.render(opt, True, color)
+                    sx = (screen.get_width() - surf.get_width()) // 2
+                    screen.blit(surf, (sx, oy + i * 28))
+
+                pygame.display.flip()
+                clock.tick(60)
+
         def apply_tree_settings():
             scale_tree_images(map.tile_kinds, map.tile_size, float(CONFIG.get('tree_scale')))
             map._images_converted = False
@@ -311,6 +489,13 @@ def main():
         SLOW_FRAMES_LIMIT = 30
         _slow_frame_count = 0
         _last_perf_log_time = 0.0
+        # If the menu requested a load, apply it now (after player/map initialized)
+        try:
+            if do_load:
+                load_game()
+        except NameError:
+            # do_load only exists when menu_action was start/load; ignore otherwise
+            pass
 
         # Game Loop
         while running:
@@ -336,6 +521,12 @@ def main():
                         except Exception as e:
                             add_msg(f'Reload failed: {e}')
                             print(f"HOTRELOAD ERROR: {e}")
+                    elif event.key == pygame.K_F9:
+                        save_game()
+                    elif event.key == pygame.K_F10:
+                        load_game()
+                    elif event.key == pygame.K_ESCAPE:
+                        pause_menu()
                     elif event.key == pygame.K_F5:
                         save_config()
                 elif event.type == pygame.KEYUP:

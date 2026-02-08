@@ -54,6 +54,37 @@ class Map:
         if self.tree_density is not None and 0.0 <= self.tree_density <= 1.0:
             self.tiles = sparsify_trees(self.tiles, self.tile_kinds, self.tree_density, self.clustered)
 
+    @classmethod
+    def from_tiles(cls, tiles, tile_kinds, tile_size, tree_density=None, clustered=False, max_tiles=120, tree_scale=None, chunk_size=8):
+        """Construct a Map directly from a tiles 2D-list (used when loading saved state)."""
+        self = cls.__new__(cls)
+        # assign basic fields
+        self.tile_kinds = tile_kinds
+        self.tile_size = tile_size
+        self.color_map = None
+        self.tree_density = tree_density
+        self.clustered = clustered
+        self.max_tiles = max_tiles
+        self.tree_scale = tree_scale
+        self.chunk_size = int(chunk_size) if chunk_size and chunk_size > 0 else 8
+
+        # runtime-only caches
+        self._chunks = None
+        self._images_converted = False
+        self._extra_px_x = 0
+        self._extra_px_y = 0
+
+        # set provided tiles
+        self.tiles = tiles
+
+        # Optionally scale tree images before conversion
+        if self.tree_scale is not None:
+            scale_tree_images(self.tile_kinds, self.tile_size, self.tree_scale)
+
+        # Do not re-sparsify when constructing from saved tiles; keep provided tiles as-is.
+
+        return self
+
     def draw(self, screen):
         # Ensure images have been converted for display and masks built
         if not self._images_converted:
