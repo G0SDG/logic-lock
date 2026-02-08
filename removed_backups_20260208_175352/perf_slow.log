@@ -1,0 +1,40 @@
+
+=== Slow frames detected at Wed Feb  4 12:52:42 2026 ===
+FPS: 4.67, frame_ms: 244.18, map_draw_ms: 241.44, sprites_ms: 1.11, flip_ms: 0.52
+Chunk blits: 12, rebuilds: 30
+Last chunk diag: {'extra_x': 96, 'extra_y': 96, 'clipped': []}
+
+=== Slow frames detected at Wed Feb  4 12:52:52 2026 ===
+FPS: 4.80, frame_ms: 249.57, map_draw_ms: 247.86, sprites_ms: 0.29, flip_ms: 0.40
+Chunk blits: 20, rebuilds: 77
+Last chunk diag: {'extra_x': 96, 'extra_y': 96, 'clipped': []}
+
+=== Slow frames detected at Wed Feb  4 12:54:41 2026 ===
+FPS: 4.63, frame_ms: 218.31, map_draw_ms: 216.27, sprites_ms: 0.65, flip_ms: 0.40
+Chunk blits: 12, rebuilds: 30
+Last chunk diag: {'extra_x': 96, 'extra_y': 96, 'clipped': []}
+
+=== Slow frames detected at Wed Feb  4 12:54:52 2026 ===
+FPS: 4.77, frame_ms: 201.37, map_draw_ms: 199.48, sprites_ms: 0.65, flip_ms: 0.40
+Chunk blits: 12, rebuilds: 77
+Last chunk diag: {'extra_x': 96, 'extra_y': 96, 'clipped': []}
+
+=== Slow frames detected at Wed Feb  4 19:07:08 2026 ===
+FPS: 5.09, frame_ms: 191.82, map_draw_ms: 190.02, sprites_ms: 0.55, flip_ms: 0.40
+Chunk blits: 12, rebuilds: 30
+Last chunk diag: {'extra_x': 96, 'extra_y': 96, 'clipped': []}
+
+=== Slow frames detected at Wed Feb  4 19:07:18 2026 ===
+FPS: 4.79, frame_ms: 198.78, map_draw_ms: 196.39, sprites_ms: 0.78, flip_ms: 0.51
+Chunk blits: 12, rebuilds: 76
+Last chunk diag: {'extra_x': 96, 'extra_y': 96, 'clipped': []}
+
+=== Slow frames detected at Wed Feb  4 19:07:29 2026 ===
+FPS: 4.81, frame_ms: 266.42, map_draw_ms: 264.40, sprites_ms: 0.39, flip_ms: 0.52
+Chunk blits: 5, rebuilds: 125
+Last chunk diag: {'extra_x': 96, 'extra_y': 96, 'clipped': []}
+
+=== Slow frames detected at Wed Feb  4 19:07:39 2026 ===
+FPS: 4.92, frame_ms: 213.08, map_draw_ms: 211.71, sprites_ms: 0.04, flip_ms: 0.42
+Chunk blits: 0, rebuilds: 174
+Last chunk diag: {'extra_x': 96, 'extra_y': 96, 'clipped': []}
